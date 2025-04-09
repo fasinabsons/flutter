@@ -10,37 +10,59 @@ class ColorPalette extends StatefulWidget {
 }
 
 class _ColorPaletteState extends State<ColorPalette> {
-  final List<Color> colors = [
-    Colors.red,
-    Colors.blue,
-    Colors.green,
-    Colors.yellow,
-    Colors.purple,
-    Colors.orange,
-    Colors.pink,
-    Colors.teal,
-    Colors.cyan,
-    Colors.indigo,
-    Colors.lime,
-    Colors.brown,
-    Colors.grey,
-    Colors.black,
+  final List<Color> allColors = [
+    Colors.red, Colors.blue, Colors.green, Colors.yellow,
+    Colors.orange, Colors.purple, Colors.pink, Colors.teal,
+    Colors.brown, Colors.indigo, Colors.cyan, Colors.lime,
+    Colors.amber, Colors.grey, Colors.black, Colors.white
   ];
 
-  final TextEditingController _controller = TextEditingController();
+  Color selectedColor = Colors.red;
+  List<Color> recentColors = [];
 
-  void _handleCustomColorInput() {
-    final input = _controller.text.trim();
-    try {
-      final hex = input.startsWith('#') ? input : '#$input';
-      final color = Color(int.parse(hex.substring(1), radix: 16) + 0xFF000000);
-      widget.onColorSelected(color);
-      SoundManager.playSound('pop');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid hex color')),
-      );
-    }
+  void _selectColor(Color color) {
+    setState(() {
+      selectedColor = color;
+      recentColors.remove(color);
+      recentColors.insert(0, color);
+      if (recentColors.length > 8) {
+        recentColors = recentColors.sublist(0, 8);
+      }
+    });
+    SoundManager.playSound('pop');
+    widget.onColorSelected(color);
+  }
+
+  void _openColorPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Container(
+        height: 300,
+        padding: const EdgeInsets.all(16),
+        child: GridView.count(
+          crossAxisCount: 4,
+          children: allColors.map((color) {
+            return GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                _selectColor(color);
+              },
+              child: Container(
+                margin: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                  border: Border.all(
+                    width: 3,
+                    color: selectedColor == color ? Colors.black : Colors.transparent,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -48,50 +70,30 @@ class _ColorPaletteState extends State<ColorPalette> {
     return Column(
       children: [
         Wrap(
-          alignment: WrapAlignment.center,
           spacing: 10,
-          runSpacing: 10,
-          children: colors.map((color) {
+          children: recentColors.map((color) {
             return GestureDetector(
-              onTap: () {
-                SoundManager.playSound('pop');
-                widget.onColorSelected(color);
-              },
+              onTap: () => _selectColor(color),
               child: Container(
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: color,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black26),
+                  color: color,
+                  border: Border.all(
+                    width: 3,
+                    color: selectedColor == color ? Colors.black : Colors.transparent,
+                  ),
                 ),
               ),
             );
           }).toList(),
         ),
-        const SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  decoration: const InputDecoration(
-                    labelText: 'Enter hex color (e.g. FF5733)',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: _handleCustomColorInput,
-                child: const Text('Add'),
-              )
-            ],
-          ),
-        )
+        TextButton.icon(
+          onPressed: () => _openColorPicker(context),
+          icon: const Icon(Icons.color_lens),
+          label: const Text('More Colors'),
+        ),
       ],
     );
   }
