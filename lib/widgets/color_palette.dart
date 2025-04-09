@@ -10,11 +10,14 @@ class ColorPalette extends StatefulWidget {
 }
 
 class _ColorPaletteState extends State<ColorPalette> {
-  final List<Color> allColors = [
-    Colors.red, Colors.blue, Colors.green, Colors.yellow,
-    Colors.orange, Colors.purple, Colors.pink, Colors.teal,
-    Colors.brown, Colors.indigo, Colors.cyan, Colors.lime,
-    Colors.amber, Colors.grey, Colors.black, Colors.white
+  final List<Color> fullPalette = [
+    Colors.red, Colors.pink, Colors.orange, Colors.yellow,
+    Colors.green, Colors.teal, Colors.blue, Colors.indigo,
+    Colors.purple, Colors.brown, Colors.grey, Colors.black,
+    const Color(0xFFFFC0CB), const Color(0xFF00FFFF), const Color(0xFF8B4513),
+    const Color(0xFFFA8072), const Color(0xFF00FF7F), const Color(0xFFDA70D6),
+    const Color(0xFFFFFFE0), const Color(0xFFB0E0E6), const Color(0xFFFFD700),
+    const Color(0xFF4682B4), const Color(0xFFDEB887), const Color(0xFFFFE4C4),
   ];
 
   Color selectedColor = Colors.red;
@@ -29,6 +32,7 @@ class _ColorPaletteState extends State<ColorPalette> {
         recentColors = recentColors.sublist(0, 8);
       }
     });
+
     SoundManager.playSound('pop');
     widget.onColorSelected(color);
   }
@@ -36,25 +40,29 @@ class _ColorPaletteState extends State<ColorPalette> {
   void _openColorPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Container(
+        padding: const EdgeInsets.all(12),
         height: 300,
-        padding: const EdgeInsets.all(16),
         child: GridView.count(
-          crossAxisCount: 4,
-          children: allColors.map((color) {
+          crossAxisCount: 6,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          children: fullPalette.map((color) {
             return GestureDetector(
               onTap: () {
                 Navigator.pop(context);
                 _selectColor(color);
               },
               child: Container(
-                margin: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: color,
                   border: Border.all(
-                    width: 3,
-                    color: selectedColor == color ? Colors.black : Colors.transparent,
+                    color: selectedColor == color ? Colors.black : Colors.white,
+                    width: 2,
                   ),
                 ),
               ),
@@ -70,30 +78,31 @@ class _ColorPaletteState extends State<ColorPalette> {
     return Column(
       children: [
         Wrap(
-          spacing: 10,
+          spacing: 6,
           children: recentColors.map((color) {
             return GestureDetector(
               onTap: () => _selectColor(color),
               child: Container(
-                width: 32,
-                height: 32,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
                   color: color,
+                  shape: BoxShape.circle,
                   border: Border.all(
-                    width: 3,
                     color: selectedColor == color ? Colors.black : Colors.transparent,
+                    width: 2,
                   ),
                 ),
               ),
             );
           }).toList(),
         ),
+        const SizedBox(height: 4),
         TextButton.icon(
           onPressed: () => _openColorPicker(context),
-          icon: const Icon(Icons.color_lens),
-          label: const Text('More Colors'),
-        ),
+          icon: const Icon(Icons.palette_outlined),
+          label: const Text("Choose Color"),
+        )
       ],
     );
   }
