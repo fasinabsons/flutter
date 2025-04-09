@@ -4,7 +4,6 @@ import 'package:xml/xml.dart';
 import '../models/coloring_page.dart';
 import '../widgets/color_palette.dart';
 import '../utils/storage_manager.dart';
-import '../utils/sound_manager.dart';
 import '../utils/svg_path_painter.dart';
 import '../utils/svg_renderer.dart';
 
@@ -35,7 +34,6 @@ class _ColoringScreenState extends State<ColoringScreen> {
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     loadProgress();
     parseSvg();
-    SoundManager.toggleMusic(true);
   }
 
   void loadProgress() async {
@@ -96,13 +94,15 @@ class _ColoringScreenState extends State<ColoringScreen> {
       widget.page.partsCount = pathIds.length;
       setState(() {});
     } catch (e) {
-      // In a production app, use a logging framework instead
+      debugPrint('Error parsing SVG: $e');
     }
   }
 
   void onPathTapped(String pathId) {
+    debugPrint('Tapped path: $pathId with color: $selectedColor');
     setState(() {
       coloredParts[pathId] = selectedColor;
+      debugPrint('Updated coloredParts: $coloredParts');
       if (coloredParts.length == pathIds.length) {
         showFunFact = true;
         completedPages++;
@@ -118,7 +118,7 @@ class _ColoringScreenState extends State<ColoringScreen> {
   @override
   void dispose() {
     _confettiController.dispose();
-    SoundManager.toggleMusic(false);
+    // Do not stop music here since it should play across screens
     super.dispose();
   }
 
@@ -151,7 +151,10 @@ class _ColoringScreenState extends State<ColoringScreen> {
                   ),
                   ColorPalette(
                     onColorSelected: (color) {
-                      setState(() => selectedColor = color);
+                      setState(() {
+                        selectedColor = color;
+                        debugPrint('Selected color: $selectedColor');
+                      });
                     },
                   ),
                 ],
@@ -241,6 +244,11 @@ class CustomSvgPicture extends StatelessWidget {
           final pathData = svgPaths[index].getAttribute('d') ?? '';
           final bounds = pathBounds[pathId] ?? Rect.zero;
 
+          // Debug bounds and position
+          debugPrint('Path $pathId bounds: $bounds');
+          debugPrint('Positioned at: (${bounds.left * (constraints.maxWidth * 0.8 / svgWidth)}, '
+              '${bounds.top * (constraints.maxHeight * 0.6 / svgHeight)})');
+
           return Positioned(
             left: bounds.left * (constraints.maxWidth * 0.8 / svgWidth),
             top: bounds.top * (constraints.maxHeight * 0.6 / svgHeight),
@@ -248,6 +256,7 @@ class CustomSvgPicture extends StatelessWidget {
             height: bounds.height * (constraints.maxHeight * 0.6 / svgHeight),
             child: GestureDetector(
               onTap: () {
+                debugPrint('GestureDetector tapped for path: $pathId');
                 if (isNumbered) {
                   onPathTapped(pathId);
                 } else {
