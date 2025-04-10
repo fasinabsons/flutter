@@ -9,10 +9,10 @@ class ChildHomeScreen extends StatefulWidget {
   const ChildHomeScreen({super.key});
 
   @override
-  _ChildHomeScreenState createState() => _ChildHomeScreenState();
+  ChildHomeScreenState createState() => ChildHomeScreenState();
 }
 
-class _ChildHomeScreenState extends State<ChildHomeScreen> {
+class ChildHomeScreenState extends State<ChildHomeScreen> {
   int _selectedIndex = 0;
 
   void _onItemTapped(int index) {
@@ -60,10 +60,10 @@ class LibraryTab extends StatefulWidget {
   const LibraryTab({super.key});
 
   @override
-  _LibraryTabState createState() => _LibraryTabState();
+  LibraryTabState createState() => LibraryTabState();
 }
 
-class _LibraryTabState extends State<LibraryTab> with SingleTickerProviderStateMixin {
+class LibraryTabState extends State<LibraryTab> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final List<String> categories = const [
     'Animals',

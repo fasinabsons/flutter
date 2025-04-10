@@ -8,10 +8,10 @@ class ParentHomeScreen extends StatefulWidget {
   const ParentHomeScreen({super.key});
 
   @override
-  _ParentHomeScreenState createState() => _ParentHomeScreenState();
+  ParentHomeScreenState createState() => ParentHomeScreenState();
 }
 
-class _ParentHomeScreenState extends State<ParentHomeScreen> with SingleTickerProviderStateMixin {
+class ParentHomeScreenState extends State<ParentHomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<String> completedPages = [];
   List<String> badges = [];

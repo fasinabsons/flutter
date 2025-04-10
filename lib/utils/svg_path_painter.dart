@@ -2,6 +2,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:xml/xml.dart' as xml;
 
 class SvgPathPainter extends CustomPainter {
   final String pathData;
@@ -284,16 +285,42 @@ class SvgPathPainter extends CustomPainter {
   }
 
   @override
-  void paint(Canvas canvas, Size size) {
-    if (pathData.isEmpty || color == Colors.transparent) return;
+void paint(Canvas canvas, Size size) {
+  if (pathData.isEmpty || color == Colors.transparent) return;
 
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
+  final path = _parsePath();
 
-    final path = _parsePath();
-    canvas.drawPath(path, paint);
-  }
+  // Determine scale to fit entire path into canvas
+  final scaleX = size.width / svgWidth;
+  final scaleY = size.height / svgHeight;
+  final scale = math.min(scaleX, scaleY); // maintain aspect ratio
+
+  // Center the path inside the canvas
+  final dx = (size.width - svgWidth * scale) / 2;
+  final dy = (size.height - svgHeight * scale) / 2;
+
+  // Apply transform
+  canvas.save();
+  canvas.translate(dx, dy);
+  canvas.scale(scale);
+
+  final paint = Paint()
+    ..color = color
+    ..style = PaintingStyle.fill;
+
+  canvas.drawPath(path, paint);
+  canvas.restore(); // clean state
+}
+
+  Map<String, String> extractPathData(String svgContent) {
+  final doc = xml.XmlDocument.parse(svgContent);
+  final paths = doc.findAllElements('path');
+  return {
+    for (var p in paths)
+      if (p.getAttribute('id') != null && p.getAttribute('d') != null)
+        p.getAttribute('id')!: p.getAttribute('d')!,
+  };
+}
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;

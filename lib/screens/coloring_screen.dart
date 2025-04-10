@@ -122,13 +122,18 @@ class _ColoringScreenState extends State<ColoringScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.page.category),
-      ),
-      body: Stack(
+ @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.white, // ✅ White canvas background
+    appBar: AppBar(
+      title: Text(widget.page.category),
+      backgroundColor: Colors.white,
+      elevation: 1,
+      foregroundColor: Colors.black,
+    ),
+    body: SafeArea( // ✅ Use SafeArea for notch-safe layout
+      child: Stack(
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
@@ -149,13 +154,21 @@ class _ColoringScreenState extends State<ColoringScreen> {
                       selectedColor: selectedColor,
                     ),
                   ),
-                  ColorPalette(
-                    onColorSelected: (color) {
-                      setState(() {
-                        selectedColor = color;
-                        debugPrint('Selected color: $selectedColor');
-                      });
-                    },
+                  const Divider(height: 1),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                    ),
+                    child: ColorPalette(
+                      onColorSelected: (color) {
+                        setState(() {
+                          selectedColor = color;
+                          debugPrint('Selected color: $selectedColor');
+                        });
+                      },
+                    ),
                   ),
                 ],
               );
@@ -169,8 +182,9 @@ class _ColoringScreenState extends State<ColoringScreen> {
           ),
           if (showFunFact)
             Center(
-              child: Container(
-                color: Colors.white.withOpacity(0.9),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                color: Colors.white.withValues(alpha:0.95),
                 padding: const EdgeInsets.all(20),
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -194,8 +208,10 @@ class _ColoringScreenState extends State<ColoringScreen> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 }
 
 class CustomSvgPicture extends StatelessWidget {
@@ -306,7 +322,7 @@ class CustomSvgPicture extends StatelessWidget {
                 height: 30,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: coloredParts[pathId] != null ? Colors.transparent : Colors.white.withOpacity(0.7),
+                  color: coloredParts[pathId] != null ? Colors.transparent : Colors.white.withValues(alpha:0.7),
                 ),
                 child: Center(
                   child: Text(

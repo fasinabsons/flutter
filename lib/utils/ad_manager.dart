@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'dart:developer';
 
 class AdManager {
   static void initialize() {
@@ -13,10 +14,10 @@ class AdManager {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          print('Banner ad loaded');
+          log('Banner ad loaded');
         },
         onAdFailedToLoad: (ad, error) {
-          print('Banner ad failed to load: $error');
+          log('Banner ad failed to load: $error');
           ad.dispose();
         },
       ),
@@ -41,7 +42,7 @@ class AdManager {
           });
         },
         onAdFailedToLoad: (error) {
-          print('Rewarded ad failed to load: $error');
+          log('Rewarded ad failed to load: $error');
         },
       ),
     );
@@ -54,7 +55,7 @@ class AdManager {
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) => ad.show(),
         onAdFailedToLoad: (error) {
-          print('Interstitial ad failed to load: $error');
+          log('Interstitial ad failed to load: $error');
         },
       ),
     );

@@ -5,10 +5,10 @@ class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
 
   @override
-  _GalleryScreenState createState() => _GalleryScreenState();
+  GalleryScreenState createState() => GalleryScreenState();
 }
 
-class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProviderStateMixin {
+class GalleryScreenState extends State<GalleryScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final List<String> works = ['Parrot (In Progress)', 'Parrot (Completed)'];
   final List<String> badges = ['Beginner Artist'];
