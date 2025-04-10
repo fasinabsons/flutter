@@ -3,7 +3,7 @@ description: A kids' coloring app
 version: 1.0.0+1
 
 environment:
-  sdk: '>=2.19.0 <3.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -18,9 +18,10 @@ dependencies:
   lottie: ^3.3.1             # For animations
   confetti: ^0.8.0           # For confetti effect
   flutter_lints: ^5.0.0      # For linting
-  path_drawing: ^1.0.1      # For drawing paths
+  path_parsing: ^1.1.0     # For drawing paths
   xml: ^6.5.0
   intl: ^0.20.2
+  path_drawing: ^1.0.1
 
 
 flutter:
