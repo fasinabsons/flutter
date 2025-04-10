@@ -1,11 +1,12 @@
+// screens/coloring_screen.dart
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
-import 'package:xml/xml.dart';
 import '../models/coloring_page.dart';
+import '../models/vector_image.dart';
 import '../widgets/color_palette.dart';
 import '../utils/storage_manager.dart';
-import '../utils/svg_path_painter.dart';
-import '../utils/svg_renderer.dart';
+import '../widgets/svg_painter.dart';
+import '../utils/svg_utils.dart';
 
 class ColoringScreen extends StatefulWidget {
   final ColoringPage page;
@@ -16,100 +17,65 @@ class ColoringScreen extends StatefulWidget {
 }
 
 class _ColoringScreenState extends State<ColoringScreen> {
-  Map<String, Color> coloredParts = {};
+  Size? _size;
+  List<PathSvgItem>? _items;
+  final Map<int, Rect> _pathBounds = {};
   Color selectedColor = Colors.red;
-  List<String> pathIds = [];
-  List<XmlElement> svgPaths = [];
-  Map<String, Rect> pathBounds = {};
   bool showFunFact = false;
   bool isNumbered = true;
   int completedPages = 0;
   late ConfettiController _confettiController;
-  double svgWidth = 300;
-  double svgHeight = 400;
 
   @override
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     loadProgress();
-    parseSvg();
+    _init();
   }
 
   void loadProgress() async {
     final progress = await StorageManager.getProgress();
     setState(() {
       completedPages = progress['completedPages'] ?? 0;
-      coloredParts = Map<String, Color>.from(progress['coloredParts'] ?? {});
       isNumbered = widget.page.isNumbered && completedPages < 5;
     });
   }
 
-  void parseSvg() async {
-    try {
-      final svgString = await DefaultAssetBundle.of(context).loadString(widget.page.svgPath);
-      final document = XmlDocument.parse(svgString);
+  Future<void> _init() async {
+    final svgString = await DefaultAssetBundle.of(context).loadString(widget.page.svgPath);
+    final vectorImage = getVectorImageFromStringXml(svgString);
+    setState(() {
+      _items = vectorImage.items;
+      _size = vectorImage.size ?? const Size(300, 400);
+      widget.page.partsCount = _items!.length;
+      _computeBounds();
+    });
+  }
 
-      // Recursively find all <path> elements
-      svgPaths = [];
-      void findPaths(XmlElement element) {
-        if (element.name.local == 'path') {
-          final pathData = element.getAttribute('d');
-          if (pathData != null && pathData.isNotEmpty) {
-            svgPaths.add(element);
-          }
-        }
-        for (final child in element.childElements) {
-          findPaths(child);
-        }
-      }
-
-      final root = document.rootElement;
-      findPaths(root);
-
-      // Extract SVG viewport size
-      final svgElement = document.getElement('svg');
-      final viewBox = svgElement?.getAttribute('viewBox')?.split(' ') ?? ['0', '0', '300', '400'];
-      svgWidth = double.tryParse(viewBox[2]) ?? 300;
-      svgHeight = double.tryParse(viewBox[3]) ?? 400;
-
-      pathIds.clear();
-      pathBounds.clear();
-      for (int i = 0; i < svgPaths.length; i++) {
-        final pathId = 'path_$i';
-        pathIds.add(pathId);
-
-        final pathData = svgPaths[i].getAttribute('d') ?? '';
-        final painter = SvgPathPainter(
-          pathData: pathData,
-          color: Colors.transparent,
-          size: Size(svgWidth, svgHeight),
-          svgWidth: svgWidth,
-          svgHeight: svgHeight,
-        );
-        final bounds = painter.computeBounds();
-        pathBounds[pathId] = bounds;
-      }
-
-      widget.page.partsCount = pathIds.length;
-      setState(() {});
-    } catch (e) {
-      debugPrint('Error parsing SVG: $e');
+  void _computeBounds() {
+    _pathBounds.clear();
+    for (int i = 0; i < _items!.length; i++) {
+      final path = _items![i].path;
+      _pathBounds[i] = path.getBounds();
     }
   }
 
-  void onPathTapped(String pathId) {
-    debugPrint('Tapped path: $pathId with color: $selectedColor');
+  void _onTap(int index) {
     setState(() {
-      coloredParts[pathId] = selectedColor;
-      debugPrint('Updated coloredParts: $coloredParts');
-      if (coloredParts.length == pathIds.length) {
+      _items![index] = _items![index].copyWith(fill: selectedColor);
+      if (_items!.every((item) => item.fill != null)) {
         showFunFact = true;
         completedPages++;
         _confettiController.play();
         StorageManager.saveProgress({
           'completedPages': completedPages,
-          'coloredParts': coloredParts,
+          'coloredParts': _items!.asMap().map((index, item) => MapEntry(index.toString(), {
+  'r': item.fill?.r,
+  'g': item.fill?.g,
+  'b': item.fill?.b,
+  'a': item.fill?.a,
+})),
         });
       }
     });
@@ -118,222 +84,147 @@ class _ColoringScreenState extends State<ColoringScreen> {
   @override
   void dispose() {
     _confettiController.dispose();
-    // Do not stop music here since it should play across screens
     super.dispose();
   }
 
- @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: Colors.white, // ✅ White canvas background
-    appBar: AppBar(
-      title: Text(widget.page.category),
-      backgroundColor: Colors.white,
-      elevation: 1,
-      foregroundColor: Colors.black,
-    ),
-    body: SafeArea( // ✅ Use SafeArea for notch-safe layout
-      child: Stack(
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Column(
-                children: [
-                  Expanded(
-                    child: CustomSvgPicture(
-                      svgPath: widget.page.svgPath,
-                      coloredParts: coloredParts,
-                      pathIds: pathIds,
-                      svgPaths: svgPaths,
-                      pathBounds: pathBounds,
-                      isNumbered: isNumbered,
-                      onPathTapped: onPathTapped,
-                      constraints: constraints,
-                      svgWidth: svgWidth,
-                      svgHeight: svgHeight,
-                      selectedColor: selectedColor,
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                    ),
-                    child: ColorPalette(
-                      onColorSelected: (color) {
-                        setState(() {
-                          selectedColor = color;
-                          debugPrint('Selected color: $selectedColor');
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          ConfettiWidget(
-            confettiController: _confettiController,
-            blastDirectionality: BlastDirectionality.explosive,
-            colors: const [Colors.pink, Colors.yellow, Colors.green],
-            shouldLoop: false,
-          ),
-          if (showFunFact)
-            Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                color: Colors.white.withValues(alpha:0.95),
-                padding: const EdgeInsets.all(20),
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.star, size: 40, color: Colors.amber),
-                    const SizedBox(height: 10),
-                    Text(
-                      widget.page.funFact,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Back to Library'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.page.category),
       ),
-    ),
-  );
+      body: _items == null || _size == null
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: Center(
+                            child: FittedBox(
+                              child: SizedBox(
+                                width: _size!.width,
+                                height: _size!.height,
+                                child: Stack(
+                                  children: [
+                                    for (int index = 0; index < _items!.length; index++)
+                                      SvgPainterImage(
+                                        item: _items![index],
+                                        size: _size!,
+                                        onTap: () {
+                                          if (isNumbered) {
+                                            _onTap(index);
+                                          } else {
+                                            final nextIndex = _items!.indexWhere((item) => item.fill == null);
+                                            if (nextIndex != -1) {
+                                              _onTap(nextIndex);
+                                            }
+                                          }
+                                        },
+                                      ),
+                                    // Numbered labels (scattered)
+                                    if (isNumbered)
+                                      ..._pathBounds.entries.map((entry) {
+                                        final index = entry.key;
+                                        final bounds = entry.value;
+                                        final offsetX = (index % 3 - 1) * 10.0;
+                                        final offsetY = ((index % 5) - 2) * 10.0;
+                                        final centroidX = bounds.left + bounds.width / 2 + offsetX;
+                                        final centroidY = bounds.top + bounds.height / 2 + offsetY;
+
+                                        return Positioned(
+                                          left: centroidX,
+                                          top: centroidY,
+                                          child: Container(
+                                            width: 30,
+                                            height: 30,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: _items![index].fill != null
+                                                  ? Colors.transparent
+                                                  : Colors.white.withValues(alpha:0.7),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '${index + 1}',
+                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        ColorPalette(
+                          onColorSelected: (color) {
+                            setState(() {
+                              selectedColor = color;
+                            });
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                ConfettiWidget(
+                  confettiController: _confettiController,
+                  blastDirectionality: BlastDirectionality.explosive,
+                  colors: const [Colors.pink, Colors.yellow, Colors.green],
+                  shouldLoop: false,
+                ),
+                if (showFunFact)
+                  Center(
+                    child: Container(
+                      color: Colors.white.withValues(alpha:0.9),
+                      padding: const EdgeInsets.all(20),
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, size: 40, color: Colors.amber),
+                          const SizedBox(height: 10),
+                          Text(
+                            widget.page.funFact,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Back to Library'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
 }
 
-}
-
-class CustomSvgPicture extends StatelessWidget {
-  final String svgPath;
-  final Map<String, Color> coloredParts;
-  final List<String> pathIds;
-  final List<XmlElement> svgPaths;
-  final Map<String, Rect> pathBounds;
-  final bool isNumbered;
-  final Function(String) onPathTapped;
-  final BoxConstraints constraints;
-  final double svgWidth;
-  final double svgHeight;
-  final Color selectedColor;
-
-  const CustomSvgPicture({
+class SvgPainterImage extends StatelessWidget {
+  const SvgPainterImage({
     super.key,
-    required this.svgPath,
-    required this.coloredParts,
-    required this.pathIds,
-    required this.svgPaths,
-    required this.pathBounds,
-    required this.isNumbered,
-    required this.onPathTapped,
-    required this.constraints,
-    required this.svgWidth,
-    required this.svgHeight,
-    required this.selectedColor,
+    required this.item,
+    required this.size,
+    required this.onTap,
   });
+  final PathSvgItem item;
+  final Size size;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Base SVG rendered by SvgRenderer
-        SizedBox(
-          width: constraints.maxWidth * 0.8,
-          height: constraints.maxHeight * 0.6,
-          child: SvgRenderer(svgPath: svgPath),
-        ),
-        // Colored paths with tap detection
-        ...pathIds.asMap().entries.map((entry) {
-          final index = entry.key;
-          final pathId = entry.value;
-          final color = coloredParts[pathId] ?? Colors.transparent;
-          final pathData = svgPaths[index].getAttribute('d') ?? '';
-          final bounds = pathBounds[pathId] ?? Rect.zero;
-
-          // Debug bounds and position
-          debugPrint('Path $pathId bounds: $bounds');
-          debugPrint('Positioned at: (${bounds.left * (constraints.maxWidth * 0.8 / svgWidth)}, '
-              '${bounds.top * (constraints.maxHeight * 0.6 / svgHeight)})');
-
-          return Positioned(
-            left: bounds.left * (constraints.maxWidth * 0.8 / svgWidth),
-            top: bounds.top * (constraints.maxHeight * 0.6 / svgHeight),
-            width: bounds.width * (constraints.maxWidth * 0.8 / svgWidth),
-            height: bounds.height * (constraints.maxHeight * 0.6 / svgHeight),
-            child: GestureDetector(
-              onTap: () {
-                debugPrint('GestureDetector tapped for path: $pathId');
-                if (isNumbered) {
-                  onPathTapped(pathId);
-                } else {
-                  final nextPath = pathIds.firstWhere(
-                    (pathId) => !coloredParts.containsKey(pathId),
-                    orElse: () => '',
-                  );
-                  if (nextPath.isNotEmpty) {
-                    onPathTapped(nextPath);
-                  }
-                }
-              },
-              child: CustomPaint(
-                painter: SvgPathPainter(
-                  pathData: pathData,
-                  color: color,
-                  size: Size(
-                    constraints.maxWidth * 0.8,
-                    constraints.maxHeight * 0.6,
-                  ),
-                  svgWidth: svgWidth,
-                  svgHeight: svgHeight,
-                ),
-                child: Container(
-                  color: Colors.transparent,
-                ),
-              ),
-            ),
-          );
-        }),
-        // Numbered labels (scattered)
-        if (isNumbered)
-          ...pathIds.asMap().entries.map((entry) {
-            final index = entry.key;
-            final pathId = entry.value;
-            final bounds = pathBounds[pathId] ?? Rect.zero;
-            final offsetX = (index % 3 - 1) * 10.0;
-            final offsetY = ((index % 5) - 2) * 10.0;
-            final centroidX = (bounds.left + bounds.width / 2 + offsetX);
-            final centroidY = (bounds.top + bounds.height / 2 + offsetY);
-
-            return Positioned(
-              left: centroidX * (constraints.maxWidth * 0.8 / svgWidth),
-              top: centroidY * (constraints.maxHeight * 0.6 / svgHeight),
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: coloredParts[pathId] != null ? Colors.transparent : Colors.white.withValues(alpha:0.7),
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            );
-          }),
-      ],
+    return CustomPaint(
+      size: size,
+      foregroundPainter: SvgPainter(item, onTap),
     );
   }
 }

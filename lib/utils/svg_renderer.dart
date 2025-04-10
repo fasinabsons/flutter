@@ -1,13 +1,15 @@
-// utils/svg_renderer.dart
+// utils/svg_renderer.dart (updated)
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class SvgRenderer extends StatelessWidget {
   final String svgPath;
+  final Color? color;
 
   const SvgRenderer({
     super.key,
     required this.svgPath,
+    this.color,
   });
 
   @override
@@ -15,7 +17,12 @@ class SvgRenderer extends StatelessWidget {
     return SvgPicture.asset(
       svgPath,
       fit: BoxFit.contain,
-      placeholderBuilder: (context) => const Center(child: CircularProgressIndicator()),
+      colorFilter: color != null 
+          ? ColorFilter.mode(color!, BlendMode.srcIn) 
+          : null,
+      placeholderBuilder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
     );
   }
 }
